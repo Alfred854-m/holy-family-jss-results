@@ -20,6 +20,23 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{background:var(--gre
 .badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;background:#d4edda}
 .rank-badge{background:var(--gold);padding:4px 10px;border-radius:20px;font-weight:900}
 @media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%;padding:20px}}
+  /* Fix ranking table alignment */
+.table-responsive table, 
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+th, td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 8px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+th:nth-child(1), td:nth-child(1) { width: 60px; } /* POS */
+th:nth-child(2), td:nth-child(2) { width: 80px; } /* ADM */
 </style>
 </head><body>
 <div class="header">
@@ -162,4 +179,34 @@ async function addNewStudentPrompt(){const adm=prompt('Enter ADM:');if(!adm)retu
 function exportExcel(){const withRanks=allStudents.map(s=>{const r=getRank(s);return {...s,Position:r.pos,ClassSize:r.total}});const ws=XLSX.utils.json_to_sheet(withRanks),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Students");XLSX.writeFile(wb,"JSS_RESULTS_RANKED_"+Date.now()+".xlsx");}
 async function bulkUpload(){const file=document.getElementById('bulkFile').files[0];if(!file)return alert('Select file');const reader=new FileReader();reader.onload=async(e)=>{const wb=XLSX.read(e.target.result,{type:'binary'}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);for(const r of rows){const adm=String(r.ADM||r.adm||'').trim(),name=String(r.Name||r.NAME||'').trim().toUpperCase();if(!adm||!name)continue;const eng=+r.ENG||0,kis=+r.KIS||0,mat=+r.MAT||0,intSci=+r.INTSCI||0,sst=+r.SST||0,agri=+r.AGRI||0,preTech=+r.PRETECH||0,cre=+r.CRE||0,creative=+r.CREATIVE||0,total=eng+kis+mat+intSci+sst+agri+preTech+cre+creative,mean=Math.round(total/9);let cbc='BE';if(mean>=80)cbc='EE1';else if(mean>=65)cbc='EE2';else if(mean>=50)cbc='ME1';else if(mean>=35)cbc='ME2';else if(mean>=20)cbc='AE1';await sb.from('students').upsert({school_id:currentSchoolId,adm,name,grade:r.Grade||'G7',eng,kis,mat,intSci,sst,agri,preTech,cre,creative,intsci:intSci,pretech:preTech,total,mean,cbc,term:'Term 3',exam_type:'End Term Exams',year:'2026'},{onConflict:'school_id,adm'});}alert('Bulk done');loadStudents();};reader.readAsBinaryString(file);}
 init();
-</script></body></html>
+</script>
+  <!-- ADD SCHOOL FLOATING BUTTON -->
+<button id="addSchoolBtn" class="btn green" style="position:fixed;bottom:20px;right:20px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3)">+ Add School</button>
+<div id="addSchoolModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+  <div class="card" style="width:90%;max-width:400px;padding:20px;">
+    <h3>Add New School</h3>
+    <label>School Name</label>
+    <input id="newSchoolName" placeholder="e.g. KABUABUA PRIMARY">
+    <label>P.O. Box</label>
+    <input id="newSchoolPoBox" placeholder="e.g. P.O. Box - Tharaka">
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn green" onclick="saveNewSchool()">Save</button>
+      <button class="btn" onclick="document.getElementById('addSchoolModal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('addSchoolBtn').onclick = () => {
+  document.getElementById('addSchoolModal').style.display = 'flex';
+};
+async function saveNewSchool(){
+  const name = document.getElementById('newSchoolName').value.trim();
+  const po_box = document.getElementById('newSchoolPoBox').value.trim();
+  if(!name){ alert('Enter school name'); return; }
+  const { error } = await supabase.from('schools').insert([{ name, po_box }]);
+  if(error){ alert('Error: ' + error.message); return; }
+  alert('School added!');
+  location.reload();
+}
+</script>
+</body></html>
