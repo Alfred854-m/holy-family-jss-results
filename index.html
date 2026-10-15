@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JSS RESULTS MANAGEMENT - V4</title>
+<title>JSS RESULTS MANAGEMENT - V5</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -11,37 +11,40 @@
 label{font-size:12px;font-weight:700;color:#333;display:block;margin-top:8px}
 input,select{padding:10px;border:1px solid #ccc;border-radius:8px;width:100%;margin:2px 0;font-size:14px}
 .btn{border:0;padding:12px 16px;border-radius:8px;cursor:pointer;font-weight:700;width:100%;margin-top:10px}
-.btn-green{background:var(--green);color:#fff}.btn-gold{background:var(--gold);color:#222}
+.btn-green{background:var(--green);color:#fff}.btn-gold{background:var(--gold);color:#222}.btn-blue{background:#1a73e8;color:#fff}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 @media(max-width:700px){.grid3,.grid2{grid-template-columns:1fr 1fr}}
 table{width:100%;border-collapse:collapse;font-size:13px}th{background:var(--green);color:#fff;padding:8px;position:sticky;top:0}td{padding:7px;border-bottom:1px solid #eee}
 .selectedRow{background:#fff8cc!important}
 .badge{padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;background:#d4edda}
+.rank-badge{background:var(--gold);padding:4px 10px;border-radius:20px;font-weight:900}
+@media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:absolute;left:0;top:0;width:100%;padding:20px}}
 </style>
 </head><body>
 <div class="header">
 <div style="display:flex;justify-content:space-between;align-items:center">
-<div><h1 style="margin:0;font-size:17px">🏫 JSS RESULTS MANAGEMENT - V4</h1><small id="schoolLabel" style="opacity:.9;font-size:11px">Loading schools...</small></div>
+<div><h1 style="margin:0;font-size:17px">🏫 JSS RESULTS MANAGEMENT - V5</h1><small id="schoolLabel" style="opacity:.9;font-size:11px">Loading...</small></div>
 <select id="schoolSelect" style="width:200px" onchange="switchSchool()"></select>
 </div>
 </div>
 
 <div class="card" style="border-left:5px solid var(--gold)">
-<h3 style="margin:0">📚 STEP 1: Select Student to Enter Marks </h3>
+<h3 style="margin:0">📚 STEP 1: Select Student</h3>
 <div class="grid2">
 <div><label>Search / Select Student</label><select id="studentSelector" onchange="onSelectStudent()"><option value="">-- Choose Student --</option></select></div>
 <div><label>Search by Name/ADM</label><input id="searchBox" placeholder="Type ALFRED or 453..." oninput="filterStudents()"></div>
 </div>
 <div class="grid3" style="margin-top:10px">
-<div><label>ADM (Auto-filled)</label><input id="adm" placeholder="ADM" readonly style="background:#eee;font-weight:700"></div>
-<div><label>Student Name (Auto-filled)</label><input id="sname" placeholder="Name" readonly style="background:#eee;font-weight:700"></div>
-<div><label>Grade</label><select id="grade"><option>G7</option><option>G8</option><option>G9</option><option>G1</option><option>G2</option><option>G3</option><option>G4</option><option>G5</option><option>G6</option></select></div>
+<div><label>ADM (Auto-filled)</label><input id="adm" readonly style="background:#eee;font-weight:700"></div>
+<div><label>Student Name (Auto-filled)</label><input id="sname" readonly style="background:#eee;font-weight:700"></div>
+<div><label>Grade</label><select id="grade"><option>G7</option><option>G8</option><option>G9</option></select></div>
 </div>
+<div id="rankDisplay" style="margin-top:10px;font-size:15px;font-weight:800;color:var(--green)"></div>
 </div>
 
 <div class="card">
-<h3 style="margin:0">✍️ STEP 2: Enter Marks - Clearly Labeled</h3>
+<h3 style="margin:0">✍️ STEP 2: Enter Marks</h3>
 <div class="grid3">
 <div><label>ENGLISH</label><input type="number" id="eng" placeholder="0-100" oninput="calcLive()"></div>
 <div><label>KISWAHILI</label><input type="number" id="kis" placeholder="0-100" oninput="calcLive()"></div>
@@ -62,37 +65,101 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{background:var(--gre
 <div><label>Term</label><select id="term"><option>Term 1</option><option>Term 2</option><option selected>Term 3</option></select></div>
 <div><label>Exam Type</label><select id="examType"><option>Opener Exams</option><option>Mid Term Exams</option><option selected>End Term Exams</option></select></div>
 </div>
-<button class="btn btn-green" onclick="saveStudent()">💾 SAVE MARKS TO CLOUD - Current Student: <span id="currentStudentDisplay">None</span></button>
+<button class="btn btn-green" onclick="saveStudent()">💾 SAVE MARKS - <span id="currentStudentDisplay">None</span></button>
+<button class="btn btn-blue" onclick="printReportCard()">🖨️ PRINT REPORT CARD for Selected Student</button>
 <div style="margin-top:10px"><input type="file" id="bulkFile" accept=".xlsx,.csv"><button class="btn btn-gold" onclick="bulkUpload()">📤 Bulk Upload Excel</button></div>
 </div>
 
 <div class="card">
-<h3>📋 All Students - Click Row to Select (ADM aligns with Name)</h3>
-<div style="overflow:auto;max-height:50vh"><table><thead><tr><th>ADM</th><th>NAME (Aligned)</th><th>Grade</th><th>Total</th><th>Mean</th><th>CBC</th><th>Action</th></tr></thead><tbody id="tbody"></tbody></table></div>
-<div style="margin-top:10px" class="grid2"><button class="btn btn-gold" onclick="exportExcel()">⬇️ Export Excel</button><button class="btn" style="background:#eee" onclick="addNewStudentPrompt()">➕ Add New Student (ADM + Name)</button></div>
+<h3>📋 All Students with Ranking</h3>
+<div style="overflow:auto;max-height:50vh"><table><thead><tr><th>POS</th><th>ADM</th><th>NAME</th><th>Grade</th><th>Total</th><th>Mean</th><th>CBC</th><th>Action</th></tr></thead><tbody id="tbody"></tbody></table></div>
+<div style="margin-top:10px" class="grid2"><button class="btn btn-gold" onclick="exportExcel()">⬇️ Export Excel with Ranks</button><button class="btn" style="background:#eee" onclick="addNewStudentPrompt()">➕ Add New Student</button></div>
 </div>
+
+<div id="printArea" class="print-area" style="display:none"></div>
 
 <script>
 const SUPABASE_URL="https://bqwnwsvgmgdnqtwrrpbc.supabase.co";
 const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxd253c3ZnbWdkbnF0d3JycGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNDA0MDksImV4cCI6MjEwNzYxNjQwOX0.KzTfdJVba0uc8I-tIb2B8z37U7yhS-riQnCU9TdWKbI";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
-let currentSchoolId=null, allStudents=[], selectedStudentId=null;
+let currentSchoolId=null, allStudents=[], selectedStudentId=null, schoolName="";
 
 async function init(){await loadSchools();}
-async function loadSchools(){const {data}=await sb.from('schools').select('*').order('name');const sel=document.getElementById('schoolSelect');sel.innerHTML='';if(!data||!data.length){document.getElementById('schoolLabel').textContent='No schools - Add one';return;}data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);});currentSchoolId=data[0].id;sel.value=currentSchoolId;switchSchool();}
-function switchSchool(){const sel=document.getElementById('schoolSelect');if(!sel.value)return;currentSchoolId=sel.value;document.getElementById('schoolLabel').textContent='Current: '+sel.options[sel.selectedIndex].text+' | MULTI-SCHOOL';loadStudents();}
+async function loadSchools(){const {data}=await sb.from('schools').select('*').order('name');const sel=document.getElementById('schoolSelect');sel.innerHTML='';if(!data||!data.length)return;data.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sel.appendChild(o);});currentSchoolId=data[0].id;schoolName=data[0].name;sel.value=currentSchoolId;switchSchool();}
+function switchSchool(){const sel=document.getElementById('schoolSelect');if(!sel.value)return;currentSchoolId=sel.value;schoolName=sel.options[sel.selectedIndex].text;document.getElementById('schoolLabel').textContent='Current: '+schoolName+' | MULTI-SCHOOL V5';loadStudents();}
 async function loadStudents(){const {data}=await sb.from('students').select('*').eq('school_id',currentSchoolId).order('adm');allStudents=data||[];renderStudentSelector(allStudents);renderTable(allStudents);}
+
+function getRank(student){
+  const classmates=allStudents.filter(s=>s.grade===student.grade).sort((a,b)=>(b.total||0)-(a.total||0));
+  const pos=classmates.findIndex(s=>s.id===student.id)+1;
+  return {pos, total: classmates.length};
+}
+
 function renderStudentSelector(list){const sel=document.getElementById('studentSelector');const current=sel.value;sel.innerHTML='<option value="">-- Choose Student --</option>';list.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.adm+' - '+s.name+' ('+s.grade+')';if(s.id===current)o.selected=true;sel.appendChild(o);});}
 function filterStudents(){const q=document.getElementById('searchBox').value.toLowerCase();const filtered=allStudents.filter(s=>s.name.toLowerCase().includes(q)||s.adm.toLowerCase().includes(q));renderStudentSelector(filtered);renderTable(filtered);}
-function onSelectStudent(){const id=document.getElementById('studentSelector').value;if(!id){clearForm();return;}const s=allStudents.find(x=>x.id===id);if(!s)return;selectedStudentId=s.id;document.getElementById('adm').value=s.adm;document.getElementById('sname').value=s.name;document.getElementById('grade').value=s.grade;document.getElementById('eng').value=s.eng||'';document.getElementById('kis').value=s.kis||'';document.getElementById('mat').value=s.mat||'';document.getElementById('intsci').value=s.intSci||s.intsci||'';document.getElementById('sst').value=s.sst||'';document.getElementById('agri').value=s.agri||'';document.getElementById('pretech').value=s.preTech||s.pretech||'';document.getElementById('cre').value=s.cre||'';document.getElementById('creative').value=s.creative||'';document.getElementById('currentStudentDisplay').textContent=s.adm+' - '+s.name;calcLive();highlightRow(s.id);}
-function clearForm(){selectedStudentId=null;document.getElementById('adm').value='';document.getElementById('sname').value='';document.getElementById('currentStudentDisplay').textContent='None';document.querySelectorAll('input[type=number]').forEach(i=>i.value='');calcLive();}
+function onSelectStudent(){const id=document.getElementById('studentSelector').value;if(!id){clearForm();return;}const s=allStudents.find(x=>x.id===id);if(!s)return;selectedStudentId=s.id;document.getElementById('adm').value=s.adm;document.getElementById('sname').value=s.name;document.getElementById('grade').value=s.grade;document.getElementById('eng').value=s.eng||'';document.getElementById('kis').value=s.kis||'';document.getElementById('mat').value=s.mat||'';document.getElementById('intsci').value=s.intSci||'';document.getElementById('sst').value=s.sst||'';document.getElementById('agri').value=s.agri||'';document.getElementById('pretech').value=s.preTech||'';document.getElementById('cre').value=s.cre||'';document.getElementById('creative').value=s.creative||'';document.getElementById('currentStudentDisplay').textContent=s.adm+' - '+s.name;calcLive();const r=getRank(s);document.getElementById('rankDisplay').innerHTML=`🏆 Position: <span class="rank-badge">${r.pos} / ${r.total}</span> in ${s.grade} | Total: ${s.total||0}`;highlightRow(s.id);}
+function clearForm(){selectedStudentId=null;document.getElementById('adm').value='';document.getElementById('sname').value='';document.getElementById('currentStudentDisplay').textContent='None';document.getElementById('rankDisplay').innerHTML='';document.querySelectorAll('input[type=number]').forEach(i=>i.value='');calcLive();}
 function calcLive(){const e=+document.getElementById('eng').value||0,k=+document.getElementById('kis').value||0,m=+document.getElementById('mat').value||0,i=+document.getElementById('intsci').value||0,s=+document.getElementById('sst').value||0,a=+document.getElementById('agri').value||0,p=+document.getElementById('pretech').value||0,c=+document.getElementById('cre').value||0,cr=+document.getElementById('creative').value||0;const tot=e+k+m+i+s+a+p+c+cr;const mean=tot?Math.round(tot/9):0;let g='BE';if(mean>=80)g='EE1';else if(mean>=65)g='EE2';else if(mean>=50)g='ME1';else if(mean>=35)g='ME2';else if(mean>=20)g='AE1';document.getElementById('liveTotal').value=tot;document.getElementById('liveMean').value=mean;document.getElementById('liveCBC').value=g;}
 function highlightRow(id){document.querySelectorAll('#tbody tr').forEach(tr=>tr.classList.remove('selectedRow'));const row=document.querySelector(`tr[data-id='${id}']`);if(row)row.classList.add('selectedRow');}
-function renderTable(list){const tbody=document.getElementById('tbody');tbody.innerHTML='';list.forEach(s=>{const tr=document.createElement('tr');tr.setAttribute('data-id',s.id);tr.style.cursor='pointer';tr.onclick=()=>{document.getElementById('studentSelector').value=s.id;onSelectStudent();window.scrollTo({top:0,behavior:'smooth'});};tr.innerHTML=`<td><b>${s.adm}</b></td><td>${s.name}</td><td>${s.grade}</td><td>${s.total||0}</td><td>${s.mean||0}</td><td><span class='badge'>${s.cbc||''}</span></td><td><button onclick="event.stopPropagation();deleteStudent('${s.id}')">❌</button></td>`;tbody.appendChild(tr);});}
-async function saveStudent(){const adm=document.getElementById('adm').value.trim();const name=document.getElementById('sname').value.trim().toUpperCase();if(!adm||!name)return alert('Select student first! ADM and Name auto-filled after selection.');if(!currentSchoolId)return alert('Select school');const eng=+document.getElementById('eng').value||0,kis=+document.getElementById('kis').value||0,mat=+document.getElementById('mat').value||0,intSci=+document.getElementById('intsci').value||0,sst=+document.getElementById('sst').value||0,agri=+document.getElementById('agri').value||0,preTech=+document.getElementById('pretech').value||0,cre=+document.getElementById('cre').value||0,creative=+document.getElementById('creative').value||0,total=eng+kis+mat+intSci+sst+agri+preTech+cre+creative,mean=Math.round(total/9);let cbc='BE';if(mean>=80)cbc='EE1';else if(mean>=65)cbc='EE2';else if(mean>=50)cbc='ME1';else if(mean>=35)cbc='ME2';else if(mean>=20)cbc='AE1';const payload={school_id:currentSchoolId,adm,name,grade:document.getElementById('grade').value,eng,kis,mat,intSci,sst,agri,preTech,cre,creative,intsci:intSci,pretech:preTech,total,mean,cbc,term:document.getElementById('term').value,exam_type:document.getElementById('examType').value,year:'2026'};const {error}=await sb.from('students').upsert(payload,{onConflict:'school_id,adm'});if(error)alert(error.message);else{alert('✅ Saved: '+name+' Total='+total);loadStudents();}}
+function renderTable(list){
+  const sorted=[...list].sort((a,b)=>(b.total||0)-(a.total||0));
+  const rankMap={};
+  const byGrade={};
+  sorted.forEach(s=>{if(!byGrade[s.grade])byGrade[s.grade]=[];byGrade[s.grade].push(s);});
+  Object.keys(byGrade).forEach(g=>{byGrade[g].sort((a,b)=>(b.total||0)-(a.total||0)).forEach((s,idx)=>rankMap[s.id]=idx+1);});
+
+  const tbody=document.getElementById('tbody');tbody.innerHTML='';
+  list.forEach(s=>{const tr=document.createElement('tr');tr.setAttribute('data-id',s.id);tr.style.cursor='pointer';tr.onclick=()=>{document.getElementById('studentSelector').value=s.id;onSelectStudent();window.scrollTo({top:0,behavior:'smooth'});};
+  tr.innerHTML=`<td><span class="rank-badge">${rankMap[s.id]||'-'}</span></td><td><b>${s.adm}</b></td><td>${s.name}</td><td>${s.grade}</td><td>${s.total||0}</td><td>${s.mean||0}</td><td><span class='badge'>${s.cbc||''}</span></td><td><button onclick="event.stopPropagation();deleteStudent('${s.id}')">❌</button></td>`;tbody.appendChild(tr);});
+}
+async function saveStudent(){const adm=document.getElementById('adm').value.trim();const name=document.getElementById('sname').value.trim().toUpperCase();if(!adm||!name)return alert('Select student first!');const eng=+document.getElementById('eng').value||0,kis=+document.getElementById('kis').value||0,mat=+document.getElementById('mat').value||0,intSci=+document.getElementById('intsci').value||0,sst=+document.getElementById('sst').value||0,agri=+document.getElementById('agri').value||0,preTech=+document.getElementById('pretech').value||0,cre=+document.getElementById('cre').value||0,creative=+document.getElementById('creative').value||0,total=eng+kis+mat+intSci+sst+agri+preTech+cre+creative,mean=Math.round(total/9);let cbc='BE';if(mean>=80)cbc='EE1';else if(mean>=65)cbc='EE2';else if(mean>=50)cbc='ME1';else if(mean>=35)cbc='ME2';else if(mean>=20)cbc='AE1';const payload={school_id:currentSchoolId,adm,name,grade:document.getElementById('grade').value,eng,kis,mat,intSci,sst,agri,preTech,cre,creative,intsci:intSci,pretech:preTech,total,mean,cbc,term:document.getElementById('term').value,exam_type:document.getElementById('examType').value,year:'2026'};const {error}=await sb.from('students').upsert(payload,{onConflict:'school_id,adm'});if(error)alert(error.message);else{alert('✅ Saved: '+name+' Total='+total);loadStudents();}}
+
+function printReportCard(){
+  if(!selectedStudentId)return alert('Select a student first!');
+  const s=allStudents.find(x=>x.id===selectedStudentId);if(!s)return;
+  const r=getRank(s);
+  const term=document.getElementById('term').value, exam=document.getElementById('examType').value;
+  const remarks={ 'EE1':'Excellent - Exceeds Expectations','EE2':'Very Good - Exceeds Expectations','ME1':'Good - Meets Expectations','ME2':'Fair - Approaching Expectations','AE1':'Needs Support','BE':'Below Expectations'};
+  const html=`
+  <div style="font-family:Arial;max-width:800px;margin:auto;border:3px solid #0f5d2f;padding:20px">
+    <div style="text-align:center;border-bottom:3px solid #f7c948;padding-bottom:10px">
+      <h1 style="margin:0;color:#0f5d2f">${schoolName.toUpperCase()}</h1>
+      <p style="margin:0">JSS REPORT CARD - ${term} ${exam} - 2026</p>
+      <p style="margin:0;font-size:12px">CBC COMPETENCY BASED ASSESSMENT</p>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin:15px 0;background:#f4f8f4;padding:10px;border-radius:8px">
+      <div><b>ADM:</b> ${s.adm}<br><b>Name:</b> ${s.name}</div>
+      <div><b>Grade:</b> ${s.grade}<br><b>Position:</b> ${r.pos} out of ${r.total}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin:10px 0">
+      <tr style="background:#0f5d2f;color:#fff"><th style="padding:8px">Subject</th><th>Marks /100</th><th>Grade</th></tr>
+      <tr><td>ENGLISH</td><td>${s.eng||0}</td><td>${s.eng>=80?'EE':s.eng>=65?'EE':s.eng>=50?'ME':'AE'}</td></tr>
+      <tr><td>KISWAHILI</td><td>${s.kis||0}</td><td></td></tr>
+      <tr><td>MATHEMATICS</td><td>${s.mat||0}</td><td></td></tr>
+      <tr><td>INTEGRATED SCIENCE</td><td>${s.intSci||0}</td><td></td></tr>
+      <tr><td>SST</td><td>${s.sst||0}</td><td></td></tr>
+      <tr><td>AGRICULTURE</td><td>${s.agri||0}</td><td></td></tr>
+      <tr><td>PRE-TECH</td><td>${s.preTech||0}</td><td></td></tr>
+      <tr><td>CRE</td><td>${s.cre||0}</td><td></td></tr>
+      <tr><td>CREATIVE ARTS</td><td>${s.creative||0}</td><td></td></tr>
+      <tr style="font-weight:900;background:#fff8cc"><td>TOTAL</td><td>${s.total||0} / 900</td><td>MEAN: ${s.mean||0}</td></tr>
+    </table>
+    <div style="background:#0f5d2f;color:#fff;padding:12px;text-align:center;border-radius:8px">
+      <h2 style="margin:0">CBC GRADE: ${s.cbc||''} - ${remarks[s.cbc]||''}</h2>
+      <p style="margin:0">Position ${r.pos} / ${r.total} in ${s.grade}</p>
+    </div>
+    <div style="margin-top:15px;display:flex;justify-content:space-between">
+      <div>Class Teacher: ___________ Sign: ______</div>
+      <div>Head Teacher: ___________ Sign: ______</div>
+    </div>
+  </div>`;
+  const w=window.open('','_blank');
+  w.document.write('<html><head><title>Report - '+s.name+'</title></head><body>'+html+'<script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.close();
+}
 async function deleteStudent(id){if(!confirm('Delete?'))return;await sb.from('students').delete().eq('id',id);loadStudents();}
-async function addNewStudentPrompt(){const adm=prompt('Enter ADM:');if(!adm)return;const name=prompt('Enter Full Name:');if(!name)return;const grade=prompt('Grade (G7/G8/G9):','G7')||'G7';await sb.from('students').upsert({school_id:currentSchoolId,adm:adm.trim(),name:name.trim().toUpperCase(),grade,total:0,mean:0,cbc:'BE'},{onConflict:'school_id,adm'});loadStudents();alert('Student added: '+name);}
-function exportExcel(){const ws=XLSX.utils.json_to_sheet(allStudents),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Students");XLSX.writeFile(wb,"JSS_RESULTS_"+Date.now()+".xlsx");}
+async function addNewStudentPrompt(){const adm=prompt('Enter ADM:');if(!adm)return;const name=prompt('Enter Full Name:');if(!name)return;const grade=prompt('Grade (G7/G8/G9):','G7')||'G7';await sb.from('students').upsert({school_id:currentSchoolId,adm:adm.trim(),name:name.trim().toUpperCase(),grade,total:0,mean:0,cbc:'BE'},{onConflict:'school_id,adm'});loadStudents();}
+function exportExcel(){const withRanks=allStudents.map(s=>{const r=getRank(s);return {...s,Position:r.pos,ClassSize:r.total}});const ws=XLSX.utils.json_to_sheet(withRanks),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Students");XLSX.writeFile(wb,"JSS_RESULTS_RANKED_"+Date.now()+".xlsx");}
 async function bulkUpload(){const file=document.getElementById('bulkFile').files[0];if(!file)return alert('Select file');const reader=new FileReader();reader.onload=async(e)=>{const wb=XLSX.read(e.target.result,{type:'binary'}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);for(const r of rows){const adm=String(r.ADM||r.adm||'').trim(),name=String(r.Name||r.NAME||'').trim().toUpperCase();if(!adm||!name)continue;const eng=+r.ENG||0,kis=+r.KIS||0,mat=+r.MAT||0,intSci=+r.INTSCI||0,sst=+r.SST||0,agri=+r.AGRI||0,preTech=+r.PRETECH||0,cre=+r.CRE||0,creative=+r.CREATIVE||0,total=eng+kis+mat+intSci+sst+agri+preTech+cre+creative,mean=Math.round(total/9);let cbc='BE';if(mean>=80)cbc='EE1';else if(mean>=65)cbc='EE2';else if(mean>=50)cbc='ME1';else if(mean>=35)cbc='ME2';else if(mean>=20)cbc='AE1';await sb.from('students').upsert({school_id:currentSchoolId,adm,name,grade:r.Grade||'G7',eng,kis,mat,intSci,sst,agri,preTech,cre,creative,intsci:intSci,pretech:preTech,total,mean,cbc,term:'Term 3',exam_type:'End Term Exams',year:'2026'},{onConflict:'school_id,adm'});}alert('Bulk done');loadStudents();};reader.readAsBinaryString(file);}
 init();
 </script></body></html>
